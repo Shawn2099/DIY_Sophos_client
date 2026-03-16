@@ -69,6 +69,13 @@ By default, the service is hardened to:
 - run as dedicated non-root user `sophoswifi`
 - restart automatically on failure
 - enforce restart throttling to avoid crash loops
+- use systemd sandboxing and write access only to `/var/log/sophos-wifi-client`
+
+Default Linux paths used by the installer/service:
+- code: `/opt/sophos-wifi-client`
+- config: `/etc/sophos-wifi-client/config.yaml`
+- env/secrets: `/etc/default/sophos-wifi-client`
+- logs: `/var/log/sophos-wifi-client/sophos_wifi.log`
 
 Then start service:
 
@@ -98,7 +105,15 @@ PURGE_CONFIG=true ./uninstall_portable.sh
 - `SOPHOSDIY_PASSWORD`
 - `SOPHOSDIY_SSID_INTERFACE`
 - `SOPHOSDIY_LOG_LEVEL`
+- `SOPHOSDIY_LOG_FILE`
 - `SOPHOSDIY_NETWORK_PROBE_ENABLED`
+
+## Verify Deployment Stability
+
+```bash
+sudo systemctl status sophos-wifi-client --no-pager
+sudo journalctl -u sophos-wifi-client -n 100 --no-pager
+```
 
 ## Notes
 

@@ -20,7 +20,7 @@ OPTIONAL_DEFAULTS = {
 	"network_error_base_sleep": 5,
 	"network_error_max_sleep": 60,
 	"log_level": "INFO",
-	"log_file": "logs/sophos_wifi.log",
+	"log_file": "/var/log/sophos-wifi-client/sophos_wifi.log",
 	"log_max_bytes": 1048576,
 	"log_backup_count": 5,
 	"log_to_stdout": True,
