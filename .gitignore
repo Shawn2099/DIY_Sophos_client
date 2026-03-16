@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.venv/
+venv/
+
+# Local runtime artifacts
+logs/
+*.log
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# Local-only config overrides (keep template files tracked)
+config/local.yaml
+config/*.local.yaml
+
+# Local runtime config
+config/config.yaml

@@ -1,0 +1,24 @@
+[Unit]
+Description=Sophos WiFi Client
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=sophoswifi
+Group=sophoswifi
+WorkingDirectory=/opt/sophos-wifi-client
+ExecStart=/usr/bin/python3 /opt/sophos-wifi-client/cli.py --config /etc/sophos-wifi-client/config.yaml
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=15
+UMask=0027
+NoNewPrivileges=true
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/sophos-wifi-client
+
+[Install]
+WantedBy=multi-user.target
