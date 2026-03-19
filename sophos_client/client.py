@@ -69,6 +69,7 @@ def main(config_path=None):
     state = DISCONNECTED
     last_attempt = 0.0
     error_streak = 0
+    has_authenticated_once = False
 
     LOGGER.info("Sophos WiFi client started")
 
@@ -92,11 +93,14 @@ def main(config_path=None):
             if not reachable:
                 state = NETWORK_ERROR
                 error_streak += 1
-                wait_seconds = _backoff_sleep(
-                    cfg["network_error_base_sleep"],
-                    cfg["network_error_max_sleep"],
-                    error_streak,
-                )
+                if not has_authenticated_once:
+                    wait_seconds = min(cfg["startup_fast_retry_seconds"], cfg["network_error_base_sleep"])
+                else:
+                    wait_seconds = _backoff_sleep(
+                        cfg["network_error_base_sleep"],
+                        cfg["network_error_max_sleep"],
+                        error_streak,
+                    )
                 LOGGER.warning("Portal host is unreachable, backing off for %ss", wait_seconds)
                 if _sleep_or_stop(stop_event, wait_seconds):
                     break
@@ -108,6 +112,7 @@ def main(config_path=None):
             if state != AUTHENTICATED:
                 LOGGER.info("Portal session is authenticated")
             state = AUTHENTICATED
+            has_authenticated_once = True
             error_streak = 0
             if _sleep_or_stop(stop_event, cfg["check_interval"]):
                 break
@@ -124,25 +129,33 @@ def main(config_path=None):
 
             LOGGER.info("Session expired, reconnecting")
 
-            logout_ok = logout(cfg)
-            if _sleep_or_stop(stop_event, cfg["reconnect_delay"]):
-                break
-            login_ok = login(cfg)
+            if not has_authenticated_once:
+                logout_ok = True
+                login_ok = login(cfg)
+            else:
+                logout_ok = logout(cfg)
+                if _sleep_or_stop(stop_event, cfg["reconnect_delay"]):
+                    break
+                login_ok = login(cfg)
 
             LOGGER.info("Reconnect result logout_ok=%s login_ok=%s", logout_ok, login_ok)
 
             last_attempt = now
             if login_ok:
                 state = CONNECTED
+                has_authenticated_once = True
                 error_streak = 0
             else:
                 state = NETWORK_ERROR
                 error_streak += 1
-                wait_seconds = _backoff_sleep(
-                    cfg["network_error_base_sleep"],
-                    cfg["network_error_max_sleep"],
-                    error_streak,
-                )
+                if not has_authenticated_once:
+                    wait_seconds = min(cfg["startup_fast_retry_seconds"], cfg["network_error_base_sleep"])
+                else:
+                    wait_seconds = _backoff_sleep(
+                        cfg["network_error_base_sleep"],
+                        cfg["network_error_max_sleep"],
+                        error_streak,
+                    )
                 LOGGER.warning("Login failed, backing off for %ss", wait_seconds)
                 if _sleep_or_stop(stop_event, wait_seconds):
                     break
@@ -151,11 +164,14 @@ def main(config_path=None):
         if pstate == "UNKNOWN":
             state = NETWORK_ERROR
             error_streak += 1
-            wait_seconds = _backoff_sleep(
-                cfg["network_error_base_sleep"],
-                cfg["network_error_max_sleep"],
-                error_streak,
-            )
+            if not has_authenticated_once:
+                wait_seconds = min(cfg["startup_fast_retry_seconds"], cfg["network_error_base_sleep"])
+            else:
+                wait_seconds = _backoff_sleep(
+                    cfg["network_error_base_sleep"],
+                    cfg["network_error_max_sleep"],
+                    error_streak,
+                )
             LOGGER.warning("Portal state unknown, backing off for %ss", wait_seconds)
             if _sleep_or_stop(stop_event, wait_seconds):
                 break

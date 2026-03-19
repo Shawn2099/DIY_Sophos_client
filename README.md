@@ -64,6 +64,8 @@ This installs under `/opt/sophos-wifi-client` (or custom path argument), creates
 - `/etc/sophos-wifi-client/config.yaml`
 - `/etc/default/sophos-wifi-client`
 - `sophos-wifi-client.service`
+- `sophos-wifi-client-healthcheck.service`
+- `sophos-wifi-client-healthcheck.timer`
 
 By default, the service is hardened to:
 - run as dedicated non-root user `sophoswifi`
@@ -82,6 +84,13 @@ Then start service:
 ```bash
 sudo systemctl start sophos-wifi-client
 sudo systemctl status sophos-wifi-client
+```
+
+Optional: start periodic health monitoring immediately (otherwise it starts next boot):
+
+```bash
+sudo systemctl start sophos-wifi-client-healthcheck.timer
+sudo systemctl status sophos-wifi-client-healthcheck.timer --no-pager
 ```
 
 To uninstall:
@@ -104,6 +113,7 @@ PURGE_CONFIG=true ./uninstall_portable.sh
 - `SOPHOSDIY_USERNAME`
 - `SOPHOSDIY_PASSWORD`
 - `SOPHOSDIY_SSID_INTERFACE`
+- `SOPHOSDIY_STARTUP_FAST_RETRY_SECONDS`
 - `SOPHOSDIY_LOG_LEVEL`
 - `SOPHOSDIY_LOG_FILE`
 - `SOPHOSDIY_NETWORK_PROBE_ENABLED`
@@ -113,6 +123,27 @@ PURGE_CONFIG=true ./uninstall_portable.sh
 ```bash
 sudo systemctl status sophos-wifi-client --no-pager
 sudo journalctl -u sophos-wifi-client -n 100 --no-pager
+sudo systemctl list-timers | grep sophos-wifi-client-healthcheck
+sudo journalctl -u sophos-wifi-client-healthcheck.service -n 50 --no-pager
+```
+
+Quick error scan (service + healthcheck + app log):
+
+```bash
+sudo sh -lc 'journalctl -u sophos-wifi-client -b --no-pager | grep -Ei "error|failed|warning|traceback|exception" || true; journalctl -u sophos-wifi-client-healthcheck.service -b --no-pager | grep -Ei "error|failed|alert|warning" || true; grep -Ei "error|failed|warning|traceback|exception" /var/log/sophos-wifi-client/sophos_wifi.log || true'
+```
+
+Reusable runtime diagnostics script (includes boot-to-service-start time diff + error scans):
+
+```bash
+chmod +x scripts/check_runtime.sh
+sudo ./scripts/check_runtime.sh
+```
+
+Optional custom service or log path:
+
+```bash
+sudo ./scripts/check_runtime.sh sophos-wifi-client /var/log/sophos-wifi-client/sophos_wifi.log
 ```
 
 ## Notes

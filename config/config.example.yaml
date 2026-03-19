@@ -7,6 +7,7 @@ check_interval: 10
 cooldown: 30
 request_timeout: 4
 reconnect_delay: 2
+startup_fast_retry_seconds: 3
 
 network_error_base_sleep: 5
 network_error_max_sleep: 60

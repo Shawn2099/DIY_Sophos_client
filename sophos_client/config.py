@@ -17,6 +17,7 @@ REQUIRED_KEYS = {
 OPTIONAL_DEFAULTS = {
 	"request_timeout": 4,
 	"reconnect_delay": 2,
+	"startup_fast_retry_seconds": 3,
 	"network_error_base_sleep": 5,
 	"network_error_max_sleep": 60,
 	"log_level": "INFO",
@@ -38,6 +39,7 @@ ENV_OVERRIDES = {
 	"SOPHOSDIY_COOLDOWN": "cooldown",
 	"SOPHOSDIY_REQUEST_TIMEOUT": "request_timeout",
 	"SOPHOSDIY_RECONNECT_DELAY": "reconnect_delay",
+	"SOPHOSDIY_STARTUP_FAST_RETRY_SECONDS": "startup_fast_retry_seconds",
 	"SOPHOSDIY_NETWORK_ERROR_BASE_SLEEP": "network_error_base_sleep",
 	"SOPHOSDIY_NETWORK_ERROR_MAX_SLEEP": "network_error_max_sleep",
 	"SOPHOSDIY_LOG_LEVEL": "log_level",
@@ -91,6 +93,7 @@ def _normalize_config(config: dict) -> dict:
 	normalized["cooldown"] = _as_positive_int(normalized, "cooldown")
 	normalized["request_timeout"] = _as_positive_int(normalized, "request_timeout")
 	normalized["reconnect_delay"] = _as_positive_int(normalized, "reconnect_delay")
+	normalized["startup_fast_retry_seconds"] = _as_positive_int(normalized, "startup_fast_retry_seconds")
 	normalized["network_error_base_sleep"] = _as_positive_int(normalized, "network_error_base_sleep")
 	normalized["network_error_max_sleep"] = _as_positive_int(normalized, "network_error_max_sleep")
 	normalized["log_max_bytes"] = _as_positive_int(normalized, "log_max_bytes")
