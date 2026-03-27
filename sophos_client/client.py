@@ -3,11 +3,21 @@ import logging
 import signal
 import threading
 from pathlib import Path
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
+import queue
 from sophos_client.config import load_config
 from sophos_client.network import current_ssid, portal_reachable
 from sophos_client.portal import login, logout, portal_state
 from sophos_client.state import AUTHENTICATED, CONNECTED, DISCONNECTED, NETWORK_ERROR
+
+def _get_error_wait_seconds(cfg, has_authenticated_once, error_streak):
+    if not has_authenticated_once:
+        return min(cfg["startup_fast_retry_seconds"], cfg["network_error_base_sleep"])
+    return _backoff_sleep(
+        cfg["network_error_base_sleep"],
+        cfg["network_error_max_sleep"],
+        error_streak,
+    )
 
 
 LOGGER = logging.getLogger(__name__)
@@ -32,7 +42,13 @@ def _configure_logging(cfg):
         backupCount=cfg["log_backup_count"],
     )
     file_handler.setFormatter(formatter)
-    root_logger.addHandler(file_handler)
+
+    # Use a non-blocking queue for log writes with a bound to prevent slow writers from causing OOM
+    log_queue = queue.Queue(1000)
+    queue_handler = QueueHandler(log_queue)
+    root_logger.addHandler(queue_handler)
+    listener = QueueListener(log_queue, file_handler)
+    listener.start()
 
     if cfg.get("log_to_stdout", True):
         stream_handler = logging.StreamHandler()
@@ -73,38 +89,44 @@ def main(config_path=None):
 
     LOGGER.info("Sophos WiFi client started")
 
+
+
+    last_portal_reachable = False
     while stop_flag["running"]:
-        ssid = current_ssid(cfg.get("ssid_interface"))
+        ssid_check_enabled = cfg.get("ssid_check_enabled", True)
+        if ssid_check_enabled:
+            ssid = current_ssid(cfg.get("ssid_interface"))
+            if ssid != cfg["ssid"]:
+                if state != DISCONNECTED:
+                    LOGGER.info("Disconnected from target SSID (current=%s)", ssid)
+                state = DISCONNECTED
+                error_streak = 0
+                if _sleep_or_stop(stop_event, 2):
+                    break
+                continue
 
-        if ssid != cfg["ssid"]:
-            if state != DISCONNECTED:
-                LOGGER.info("Disconnected from target SSID (current=%s)", ssid)
-            state = DISCONNECTED
-            error_streak = 0
-            if _sleep_or_stop(stop_event, 5):
-                break
-            continue
-
+        # Always use direct IP for portal_url
+        portal_url = cfg["portal_url"].strip()
         if cfg.get("network_probe_enabled", True):
             reachable = portal_reachable(
-                cfg["portal_url"],
+                portal_url,
                 timeout_seconds=cfg["network_probe_timeout"],
             )
             if not reachable:
                 state = NETWORK_ERROR
                 error_streak += 1
-                if not has_authenticated_once:
-                    wait_seconds = min(cfg["startup_fast_retry_seconds"], cfg["network_error_base_sleep"])
-                else:
-                    wait_seconds = _backoff_sleep(
-                        cfg["network_error_base_sleep"],
-                        cfg["network_error_max_sleep"],
-                        error_streak,
-                    )
+                wait_seconds = _get_error_wait_seconds(cfg, has_authenticated_once, error_streak)
                 LOGGER.warning("Portal host is unreachable, backing off for %ss", wait_seconds)
+                last_portal_reachable = False
                 if _sleep_or_stop(stop_event, wait_seconds):
                     break
                 continue
+            # If portal just became reachable, retry immediately
+            if not last_portal_reachable:
+                LOGGER.info("Portal became reachable, retrying immediately")
+                last_portal_reachable = True
+        else:
+            last_portal_reachable = True
 
         pstate = portal_state(cfg)
 
@@ -119,7 +141,7 @@ def main(config_path=None):
             continue
 
         if pstate == "AUTH_REQUIRED":
-            now = time.time()
+            now = time.monotonic()
 
             if now - last_attempt < cfg["cooldown"]:
                 LOGGER.info("Cooldown active, skipping reconnect")
@@ -148,14 +170,7 @@ def main(config_path=None):
             else:
                 state = NETWORK_ERROR
                 error_streak += 1
-                if not has_authenticated_once:
-                    wait_seconds = min(cfg["startup_fast_retry_seconds"], cfg["network_error_base_sleep"])
-                else:
-                    wait_seconds = _backoff_sleep(
-                        cfg["network_error_base_sleep"],
-                        cfg["network_error_max_sleep"],
-                        error_streak,
-                    )
+                wait_seconds = _get_error_wait_seconds(cfg, has_authenticated_once, error_streak)
                 LOGGER.warning("Login failed, backing off for %ss", wait_seconds)
                 if _sleep_or_stop(stop_event, wait_seconds):
                     break
@@ -164,14 +179,7 @@ def main(config_path=None):
         if pstate == "UNKNOWN":
             state = NETWORK_ERROR
             error_streak += 1
-            if not has_authenticated_once:
-                wait_seconds = min(cfg["startup_fast_retry_seconds"], cfg["network_error_base_sleep"])
-            else:
-                wait_seconds = _backoff_sleep(
-                    cfg["network_error_base_sleep"],
-                    cfg["network_error_max_sleep"],
-                    error_streak,
-                )
+            wait_seconds = _get_error_wait_seconds(cfg, has_authenticated_once, error_streak)
             LOGGER.warning("Portal state unknown, backing off for %ss", wait_seconds)
             if _sleep_or_stop(stop_event, wait_seconds):
                 break

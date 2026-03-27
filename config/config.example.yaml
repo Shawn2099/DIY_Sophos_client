@@ -3,14 +3,14 @@ portal_url: http://YOUR_PORTAL_IP:8090
 username: YOUR_USERNAME
 password: YOUR_PASSWORD
 
-check_interval: 10
-cooldown: 30
-request_timeout: 4
-reconnect_delay: 2
-startup_fast_retry_seconds: 3
+check_interval: 5
+cooldown: 10
+request_timeout: 2
+reconnect_delay: 1
+startup_fast_retry_seconds: 1
 
-network_error_base_sleep: 5
-network_error_max_sleep: 60
+network_error_base_sleep: 2
+network_error_max_sleep: 30
 
 log_level: INFO
 log_file: /var/log/sophos-wifi-client/sophos_wifi.log
@@ -20,4 +20,5 @@ log_to_stdout: true
 
 ssid_interface: ""
 network_probe_enabled: true
-network_probe_timeout: 2
+network_probe_timeout: 1
+ssid_check_enabled: true  # Set to false to skip SSID check

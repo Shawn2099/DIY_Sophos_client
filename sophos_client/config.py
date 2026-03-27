@@ -15,11 +15,11 @@ REQUIRED_KEYS = {
 }
 
 OPTIONAL_DEFAULTS = {
-	"request_timeout": 4,
-	"reconnect_delay": 2,
-	"startup_fast_retry_seconds": 3,
-	"network_error_base_sleep": 5,
-	"network_error_max_sleep": 60,
+	"request_timeout": 2,  # Lowered for faster probe
+	"reconnect_delay": 1,  # Lowered for faster retry
+	"startup_fast_retry_seconds": 1,  # Lowered for faster initial retry
+	"network_error_base_sleep": 2,  # Lowered for faster error recovery
+	"network_error_max_sleep": 30,  # Lowered max backoff
 	"log_level": "INFO",
 	"log_file": "/var/log/sophos-wifi-client/sophos_wifi.log",
 	"log_max_bytes": 1048576,
@@ -27,7 +27,8 @@ OPTIONAL_DEFAULTS = {
 	"log_to_stdout": True,
 	"ssid_interface": "",
 	"network_probe_enabled": True,
-	"network_probe_timeout": 2,
+	"network_probe_timeout": 1,
+	"ssid_check_enabled": True,  # New option
 }
 
 ENV_OVERRIDES = {
@@ -98,7 +99,9 @@ def _normalize_config(config: dict) -> dict:
 	normalized["network_error_max_sleep"] = _as_positive_int(normalized, "network_error_max_sleep")
 	normalized["log_max_bytes"] = _as_positive_int(normalized, "log_max_bytes")
 	normalized["log_backup_count"] = _as_positive_int(normalized, "log_backup_count")
+
 	normalized["network_probe_timeout"] = _as_positive_float(normalized, "network_probe_timeout")
+	normalized["ssid_check_enabled"] = _as_bool(normalized.get("ssid_check_enabled", True))
 
 	if normalized["network_error_max_sleep"] < normalized["network_error_base_sleep"]:
 		raise ValueError("Config key 'network_error_max_sleep' must be >= 'network_error_base_sleep'")

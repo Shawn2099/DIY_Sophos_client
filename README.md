@@ -27,11 +27,11 @@ pip install -r requirements.txt
 cp config/config.example.yaml config/config.yaml
 ```
 
-3. Set credentials in either:
-- `config/config.yaml`, or
-- environment variables (recommended):
+3. Set credentials via environment variables (recommended for all deployments):
   - `SOPHOSDIY_USERNAME`
   - `SOPHOSDIY_PASSWORD`
+
+Use `config/config.yaml` only for non-secret defaults (SSID, portal URL, timing, logging).
 
 4. Run:
 
@@ -150,4 +150,4 @@ sudo ./scripts/check_runtime.sh sophos-wifi-client /var/log/sophos-wifi-client/s
 
 - Use `python3 cli.py --doctor` after any config change.
 - Keep secrets in `/etc/default/sophos-wifi-client` for production deployments.
-- Keep `config.yaml` non-secret and store real credentials in env file overrides.
+- Keep `config.yaml` non-secret; do not commit real usernames/passwords.
